@@ -1,7 +1,12 @@
-#include <spdLeg.h>
+#include <../include/spdLeg.h>
 
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+SPDLegs* leg1 = nullptr;
+SPDLegs* leg2 = nullptr;
+SPDLegs* leg3 = nullptr;
+SPDLegs* leg4 = nullptr;
 
 // put function declarations here:
 
@@ -9,23 +14,21 @@ char* readMessage();
 void setStand();
 void setRest();
 
-int minPulse = 103;
-int maxPulse = 512;
-
-
-int rest = 307;
-int servoNum = 1;
-
 void setup() {
   Serial.begin(115200);
-  Serial.println("Servo Testing!");
+  Serial.println("SPIDER Robot Started!");
 
-  pwm.begin(); // Initialize the PWM driver
-  pwm.reset();
+  Adafruit_PWMServoDriver* pwm = new Adafruit_PWMServoDriver();
 
-  pwm.setOscillatorFrequency(25000000); // Set the oscillator frequency
-  pwm.setPWMFreq(60); // Set frequency to 60 Hz for servos
+  static std::vector<int> leg1Idx = {1,6,10};
+  static std::vector<int> leg2Idx = {14,7,11};
+  static std::vector<int> leg3Idx = {4,8,12};
+  static std::vector<int> leg4Idx = {5,9,13};
 
+  leg1 = new SPDLegs(3, &leg1Idx, "Leg 1", pwm);
+  leg2 = new SPDLegs(4, &leg2Idx, "Leg 2", pwm);
+  leg3 = new SPDLegs(5, &leg3Idx, "Leg 3", pwm);
+  leg4 = new SPDLegs(6, &leg4Idx, "Leg 4", pwm);
 
 
   delay(10);
@@ -42,17 +45,17 @@ void loop() {
     }else if(strcmp(message, "stand") == 0){
       Serial.println("standing\n");
       setStand();
-    }else{
-      //Serial.print(message);
-      Serial.println("hi");
+    }else if (strcmp(message, "move") == 0){
+      std::vector<double>* pos = new std::vector<double>{0.0, 0.0, 0.0};
+      leg1->moveLeg(pos);
+    }else {
+      Serial.println("No such command!");
     }
   }
   delay(10);
 }
 
 // put function definitions here:
-
-
 
 char* readMessage(){
   static char message[20] = {};
