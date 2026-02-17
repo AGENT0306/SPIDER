@@ -1,99 +1,73 @@
-#include <../include/spdLeg.h>
-
+#include "../include/include.h"
+#include "../include/spdMoves.h"
+#include "../include/spdCalibration.h"
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
-SPDLegs* leg1 = nullptr;
-SPDLegs* leg2 = nullptr;
-SPDLegs* leg3 = nullptr;
-SPDLegs* leg4 = nullptr;
-
-// put function declarations here:
-
-char* readMessage();
-void setStand();
-void setRest();
+SPDLegs legs[NUM_LEGS];
+SpiderMoves* moves = nullptr;
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println("SPIDER Robot Started!");
+    Serial.begin(115200);
+    Serial.println("SPIDER Robot Started!");
 
-  Adafruit_PWMServoDriver* pwm = new Adafruit_PWMServoDriver();
+    pwm.begin();
+    pwm.setOscillatorFrequency(OSC_FREQ);
+    pwm.setPWMFreq(PWM_FREQ);
 
-  static std::vector<int> leg1Idx = {1,6,10};
-  static std::vector<int> leg2Idx = {14,7,11};
-  static std::vector<int> leg3Idx = {4,8,12};
-  static std::vector<int> leg4Idx = {5,9,13};
+    for (int i = 0; i < NUM_LEGS; i++) {
+        legs[i] = SPDLegs(SERVO_CHANNELS[i], &pwm);
+    }
 
-  leg1 = new SPDLegs(3, &leg1Idx, "Leg 1", pwm);
-  leg2 = new SPDLegs(4, &leg2Idx, "Leg 2", pwm);
-  leg3 = new SPDLegs(5, &leg3Idx, "Leg 3", pwm);
-  leg4 = new SPDLegs(6, &leg4Idx, "Leg 4", pwm);
+    SpdCalibration::loadTrims(legs);
 
+    moves = new SpiderMoves(legs);
+    moves->execute(MOVE_REST);
 
-  delay(10);
+    Serial.println("Commands: rest, stand, sit, walk, walkback, left, right, wave, stop, cal, devmode");
+    delay(10);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+    if (Serial.available() > 0) {
+        String cmd = Serial.readStringUntil('\n');
+        cmd.trim();
 
-  if(Serial.available() > 0){
-    auto message = readMessage();
-    if(strcmp(message, "rest") == 0){
-      Serial.println("resting\n");
-      setRest();
-    }else if(strcmp(message, "stand") == 0){
-      Serial.println("standing\n");
-      setStand();
-    }else if (strcmp(message, "move") == 0){
-      std::vector<double>* pos = new std::vector<double>{0.0, 0.0, 0.0};
-      leg1->moveLeg(pos);
-    }else {
-      Serial.println("No such command!");
+        if (cmd == "rest") {
+            Serial.println("Resting");
+            moves->execute(MOVE_REST);
+        } else if (cmd == "stand") {
+            Serial.println("Standing");
+            moves->execute(MOVE_STAND);
+        } else if (cmd == "sit") {
+            Serial.println("Sitting");
+            moves->execute(MOVE_SIT);
+        } else if (cmd == "walk") {
+            Serial.println("Walking forward");
+            moves->execute(MOVE_WALK_FWD);
+        } else if (cmd == "walkback") {
+            Serial.println("Walking backward");
+            moves->execute(MOVE_WALK_BACK);
+        } else if (cmd == "left") {
+            Serial.println("Turning left");
+            moves->execute(MOVE_TURN_LEFT);
+        } else if (cmd == "right") {
+            Serial.println("Turning right");
+            moves->execute(MOVE_TURN_RIGHT);
+        } else if (cmd == "wave") {
+            Serial.println("Waving");
+            moves->execute(MOVE_WAVE);
+        } else if (cmd == "stop") {
+            moves->stop();
+            Serial.println("Stopped");
+        } else if (cmd == "cal") {
+            SpdCalibration::enterCalMode(legs);
+        } else if (cmd == "devmode") {
+            devMode(pwm);
+        } else {
+            Serial.print("Unknown command: ");
+            Serial.println(cmd);
+        }
     }
-  }
-  delay(10);
-}
-
-// put function definitions here:
-
-char* readMessage(){
-  static char message[20] = {};
-  for(int i = 0; i < 20; i++){
-    char incomingByte = Serial.read();
-
-    if(incomingByte == '\n' || incomingByte == '\0' || i == 19){
-      message[i] = '\0';
-      break;
-    }
-
-    message[i] = incomingByte;
-  }
-  return message;
-}
-
-void setRest(){
-  for(int i = 0; i < 16; i++){
-    pwm.setPWM(i,0, 307);
-  }
-}
-
-void setStand(){
-  pwm.setPWM(1, 0, 200);
-  pwm.setPWM(4, 0, 460);
-  pwm.setPWM(5, 0, 200);
-  pwm.setPWM(14, 0, 500);
-
-  pwm.setPWM(6, 0, 370);
-  delay(100);
-  pwm.setPWM(7, 0, 370);
-   delay(100);
-  pwm.setPWM(8, 0, 280);
-   delay(100);
-  pwm.setPWM(9, 0, 250);
-
-  pwm.setPWM(10, 0, 130);
-  pwm.setPWM(11, 0, 130);
-  pwm.setPWM(12, 0, 500);
-  pwm.setPWM(13, 0, 500);
+    delay(100);
 }
